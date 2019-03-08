@@ -7,7 +7,7 @@ CXX = g++
 LD = $(CXX)
 CCFLAGS = -g -Wall
 OUTPUT_DIR = build
-SOURCE_DIR := Src
+SOURCE_DIR := Sources
 
 SOURCES := $(wildcard $(SOURCE_DIR)/*.cpp)
 OBJECTS = $(addprefix $(OUTPUT_DIR)/,$(patsubst %.cpp, %.o, $(wildcard *.cpp)))
@@ -30,7 +30,7 @@ $(OUTPUT_DIR)/%.o: %.cpp
 
 # Link all object files
 $(TARGET): $(OBJECTS)
-	$(LD) -mwindows $(OBJECTS) -Wall $(LIBS) $(INCS) -o $@
+	$(LD) $(OBJECTS) -Wall $(LIBS) $(INCS) -o $@
 
 clean:
 	-rm -f $(OUTPUT_DIR)/*.o
