@@ -26,6 +26,32 @@ struct drs_file_info {
 	int32_t file_size;
 };
 
+struct slp_header {
+  char  version[4];
+  int32_t num_frames;
+  char  comment[24];
+};
+
+struct slp_frame_info {
+  uint32_t cmd_table_offset;
+  uint32_t outline_table_offset;
+  uint32_t palette_offset;
+  uint32_t properties;
+  int32_t  width;
+  int32_t  height;
+  int32_t  hotspot_x;
+  int32_t  hotspot_y;
+};
+
+struct slp_frame_row_edge {
+  uint16_t left_space;
+  uint16_t right_space;
+};
+
+struct slp_command_offset {
+  uint32 offset;
+}
+
 class Assets
 {
 private:
