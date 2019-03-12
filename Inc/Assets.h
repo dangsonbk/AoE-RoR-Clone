@@ -49,8 +49,24 @@ struct slp_frame_row_edge {
 };
 
 struct slp_command_offset {
-  uint32 offset;
-}
+  uint32_t offset;
+};
+
+enum slp_cmd 
+{ 
+  cmd_color_list, 
+  cmd_skip, 
+  cmd_big_color_list,
+  cmd_big_skip,
+  cmd_player_color_list = 0x6,
+  cmd_fill,
+  cmd_player_color_fill = 0xa,
+  cmd_shadow_transparent,
+  cmd_shadow_player = 0xe,
+  cmd_end_of_row = 0xf,
+  cmd_outline = 0x4e,
+  cmd_outline_span = 0x5e,
+};
 
 class Assets
 {
