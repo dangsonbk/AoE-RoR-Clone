@@ -30,7 +30,7 @@ void Assets::load()
     // fh.open("../Assets/Origin/Interfac.drs", std::fstream::in | std::fstream::binary);
 
     fh.read((char*)&header, sizeof(drs_header));
-    std::cout << header.copyright << "\n" << header.version << "\n" << header.ftype << "\n" << header.table_count << "\n" << header.file_offset << std::endl;
+    std::cout << header.copyright << "\n" << header.version << "\n" << header.ftype << "\n" << "Table count: " << header.table_count << "\n" << header.file_offset << std::endl;
     
     int32_t *file_info_offsets = new int[header.table_count];
     int32_t *file_info_numfile = new int[header.table_count];
@@ -74,35 +74,35 @@ void Assets::load()
                     << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
                     << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << std::endl;
 
-        // for(int l = 0; l < slp_file_frame_info.height; l++){
-        //     fh.read((char*)&slp_file_frame_row_edge, sizeof(slp_frame_row_edge));
-        //     if((slp_file_frame_row_edge.left_space == 0x8000) || slp_file_frame_row_edge.right_space == 0x8000) {
-        //         for(int m = 0; m < slp_file_frame_info.width; m++){
-        //             std::cout << " ";
-        //         }
-        //     } else {
-        //         for(int ls = 0; ls < slp_file_frame_row_edge.left_space; ls++){
-        //             std::cout << " ";
-        //         }
-        //         int center = slp_file_frame_info.width - slp_file_frame_row_edge.left_space - slp_file_frame_row_edge.right_space;
-        //         for(int ct = 0; ct < center; ct++){
-        //             std::cout << "*";
-        //         }
-        //         for(int lr = 0; lr < slp_file_frame_row_edge.right_space; lr++){
-        //             std::cout << " ";
-        //         }
-        //         std::cout << "\n";
-        //         // std::cout   << "left_space: " << slp_file_frame_row_edge.left_space << "\n"
-        //         //             << "right_space: " << slp_file_frame_row_edge.right_space << std::endl;
-        //     }
-        // }
+        for(int l = 0; l < slp_file_frame_info.height; l++){
+            fh.read((char*)&slp_file_frame_row_edge, sizeof(slp_frame_row_edge));
+            if((slp_file_frame_row_edge.left_space == 0x8000) || slp_file_frame_row_edge.right_space == 0x8000) {
+                for(int m = 0; m < slp_file_frame_info.width; m++){
+                    std::cout << "-";
+                }
+            } else {
+                for(int ls = 0; ls < slp_file_frame_row_edge.left_space; ls++){
+                    std::cout << " ";
+                }
+                int center = slp_file_frame_info.width - slp_file_frame_row_edge.left_space - slp_file_frame_row_edge.right_space;
+                for(int ct = 0; ct < center; ct++){
+                    std::cout << "*";
+                }
+                for(int lr = 0; lr < slp_file_frame_row_edge.right_space; lr++){
+                    std::cout << " ";
+                }
+                std::cout << "\n";
+                // std::cout   << "left_space: " << slp_file_frame_row_edge.left_space << "\n"
+                //             << "right_space: " << slp_file_frame_row_edge.right_space << std::endl;
+            }
+        }
 
         int32_t *drawing_command_offsets = new int[slp_file_frame_info.height];
-        fh.seekg(slp_file_frame_info.cmd_table_offset);
+        fh.seekg(file_info.file_data_offset + slp_file_frame_info.outline_table_offset + slp_file_frame_info.height * 4);
         for(int l = 0; l < slp_file_frame_info.height; l++){
             fh.read((char*)&slp_file_command_offset , sizeof(slp_command_offset ));
             drawing_command_offsets[l] = slp_file_command_offset.offset;
-            std::cout   << "offset: " << slp_file_command_offset.offset << "\n";
+            // std::cout   << "offset: " << slp_file_command_offset.offset << "\n";
         }
         char command;
         for(int l = 0; l < slp_file_frame_info.height; l++){
@@ -110,7 +110,7 @@ void Assets::load()
             // fh.seekg(drawing_command_offsets[l]);
             do {
                 fh.read((char*)&command , sizeof(command ));
-                printf("0x%x", command);
+                printf(" 0x%x", command & 0x0F);
             } while (command != 0x0F);
 
             std::cout << std::endl;
