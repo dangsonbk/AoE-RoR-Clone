@@ -5,34 +5,40 @@
 #include <fstream>
 #include <iterator>
 #include <vector>
+#include <list>
+#include <string.h>
+#include <map>
 
-struct drs_header {
+// #include "spdlog/spdlog.h"
+using namespace std; 
+// Struct defined by https://github.com/SFTtech/openage 
+typedef struct drs_header {
     char copyright[40];
     char version[4];
     char ftype[12];
     int32_t table_count;
     int32_t file_offset;
-};
+} DRSHeader;
 
-struct drs_table_info {
-	char file_extension[4];
-	int32_t file_info_offset;
-	int32_t num_files;
-};
+typedef struct drs_table_raw_info {
+  char file_extension[4];
+  int32_t file_info_offset;
+  int32_t num_files;
+} DRSTableInfo;
 
-struct drs_file_info {
-	int32_t file_id;
-	int32_t file_data_offset;
-	int32_t file_size;
-};
+typedef struct drs_file_info {
+  int32_t file_id;
+  int32_t file_data_offset;
+  int32_t file_size;
+} DRSFileInfo;
 
-struct slp_header {
+typedef struct slp_header {
   char  version[4];
   int32_t num_frames;
   char  comment[24];
-};
+} SLPHeader;
 
-struct slp_frame_info {
+typedef struct slp_frame_info {
   uint32_t cmd_table_offset;
   uint32_t outline_table_offset;
   uint32_t palette_offset;
@@ -41,16 +47,16 @@ struct slp_frame_info {
   int32_t  height;
   int32_t  hotspot_x;
   int32_t  hotspot_y;
-};
+} SLPFrameInfo;
 
-struct slp_frame_row_edge {
+typedef struct slp_frame_row_edge {
   uint16_t left_space;
   uint16_t right_space;
-};
+} SLPFrameRowEdge;
 
-struct slp_command_offset {
+typedef struct slp_command_offset {
   uint32_t offset;
-};
+} SLPCommandOffset;
 
 enum slp_cmd 
 { 
@@ -68,12 +74,18 @@ enum slp_cmd
   cmd_outline_span = 0x5e,
 };
 
-class Assets
-{
+class Assets {
 private:
+  map<int32_t, int32_t> m_file_info_map_slp;
+
+private:
+  void _read_drs_header(std::fstream &fh, drs_header *header);
+  void _read_drs_table_info(std::fstream &fh, list<DRSTableInfo> *table_info, int table_count);
+  void _read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it);
+  int  _read_slp_frames_by_id(fstream &fh, int32_t id);
 public:
-    Assets(/* args */);
-    ~Assets();
-    void load();
+  Assets(/* args */);
+  ~Assets();
+  void load();
 };
 #endif

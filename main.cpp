@@ -7,8 +7,8 @@
 
 int main()
 {
-    Game game;
     Assets assets;
+    Game game;
     game.run();
 
     return 0;

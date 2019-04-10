@@ -3,7 +3,15 @@
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application") , mTexture(), mPlayer()
 {
     // TODO: Make game setting class that define where to load texture
-    if (!mTexture.loadFromFile("../Assets/Danson/Images/9718.png"))
+    // Below is testing code for loading texture from pixels
+    sf::Image image;
+    uint8_t pixels[20*20*4];
+    for(int i = 0; i < 20*20*4; ++i) {
+        *(pixels + i) = 255;
+    }
+    image.create(20, 20, pixels);
+
+    if (!mTexture.loadFromImage(image))
     {
         exit(1);
     }
