@@ -2,14 +2,19 @@
 
 Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application") , mTexture(), mPlayer()
 {
+    m_assets = new Assets();
     // TODO: Make game setting class that define where to load texture
     // Below is testing code for loading texture from pixels
     sf::Image image;
-    uint8_t pixels[20*20*4];
-    for(int i = 0; i < 20*20*4; ++i) {
-        *(pixels + i) = 255;
+    vector<RGBAPixel> pixels_vect = m_assets->get_by_id(3);
+    uint8_t pixels[120*77*4];
+    for(int i = 0; i < 120*77; ++i) {
+        *(pixels + i*4) = pixels_vect[i].r;
+        *(pixels + i*4 + 1) = pixels_vect[i].g;
+        *(pixels + i*4 + 2) = pixels_vect[i].b;
+        *(pixels + i*4 + 3) = pixels_vect[i].a;
     }
-    image.create(20, 20, pixels);
+    image.create(120, 70, pixels);
 
     if (!mTexture.loadFromImage(image))
     {

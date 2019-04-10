@@ -2,9 +2,14 @@
 #define GAME_HPP
 
 #include "SFML/Graphics.hpp"
+#include "Common.h"
+#include "Assets.h"
 
 class Game
 {
+
+private:
+    Assets* m_assets;
 
 public:
     Game();

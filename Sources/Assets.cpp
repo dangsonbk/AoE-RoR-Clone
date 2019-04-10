@@ -1,15 +1,14 @@
 #include "Assets.h"
-#include <iostream>
 
 /*
  * http://artho.com/age/drs.html
  * https://github.com/SFTtech/openage/blob/master/doc/media/slp-files.md
 */
-using namespace std; 
+using namespace std;
 
 Assets::Assets(/* args */)
 {
-    load();
+    _load();
 }
 
 Assets::~Assets()
@@ -38,7 +37,7 @@ void Assets::_read_drs_table_info(fstream &fh, list<DRSTableInfo> *tables_info, 
         char _file_ext[5];
         strncpy(_file_ext, table_info.file_extension, 4);
         _file_ext[4] = '\0';
-        cout    << "- Table information: " << table_info.num_files << " " << _file_ext 
+        cout    << "- Table information: " << table_info.num_files << " " << _file_ext
                 << " file(s) at offset " << table_info.file_info_offset << endl;
     }
 }
@@ -80,9 +79,8 @@ void Assets::_read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
     }
 }
 
-int Assets::_read_slp_frames_by_id(fstream &fh, int32_t id){
-    int result = false;
-    
+vector<RGBAPixel> Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
+    vector<RGBAPixel> pixels;
     SLPHeader slp_file_header = {0};
     SLPFrameInfo slp_file_frame_info = {0};
     SLPFrameRowEdge slp_file_frame_row_edge = {0};
@@ -94,31 +92,45 @@ int Assets::_read_slp_frames_by_id(fstream &fh, int32_t id){
         cout << "Offset of item: " << it->second << endl;
         fh.seekg(it->second);
         fh.read((char*)&slp_file_header, sizeof(slp_file_header));
-        
+
         cout << "-- SLP file header: " << endl;
         cout    << "num_frames: " << slp_file_header.num_frames << "\n"
                 << "comment: " << slp_file_header.comment << endl;
 
+        int32_t _max_width = 0;
+        int32_t _max_heigh = 0;
         for(int i = 0; i < slp_file_header.num_frames; ++i) {
             fh.read((char*)&slp_file_frame_info, sizeof(slp_frame_info));
-            cout   << "cmd_table_offset: " << slp_file_frame_info.cmd_table_offset << "\n"
-                        << "outline_table_offset: " << slp_file_frame_info.outline_table_offset << "\n"
-                        << "palette_offset: " << slp_file_frame_info.palette_offset << "\n"
-                        << "properties: " << slp_file_frame_info.properties << "\n"
-                        << "width: " << slp_file_frame_info.width << "\n"
-                        << "height: " << slp_file_frame_info.height << "\n"
-                        << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
-                        << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << endl;
+            _max_width = max(_max_width, slp_file_frame_info.width);
+            _max_heigh = max(_max_heigh, slp_file_frame_info.height);
+            cout    << "cmd_table_offset: " << slp_file_frame_info.cmd_table_offset << "\n"
+                    << "outline_table_offset: " << slp_file_frame_info.outline_table_offset << "\n"
+                    << "palette_offset: " << slp_file_frame_info.palette_offset << "\n"
+                    << "properties: " << slp_file_frame_info.properties << "\n"
+                    << "width: " << slp_file_frame_info.width << "\n"
+                    << "height: " << slp_file_frame_info.height << "\n"
+                    << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
+                    << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << endl;
         }
 
-        result = true;
+        int32_t pixels_count = _max_width * _max_heigh;
+        for (int i = 0; i < pixels_count; ++i) {
+            RGBAPixel pixel = {255,255,255,255};
+            pixels.push_back(pixel);
+        }
     } else {
         cout << "Item not found, could not read frames info" << endl;
     }
-    return result;
+    return pixels;
 }
 
-void Assets::load()
+vector<RGBAPixel> Assets::get_by_id(int32_t id) {
+    fstream fh;
+    fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
+    return this->_read_slp_frames_by_id(fh, 3);
+}
+
+void Assets::_load()
 {
     DRSHeader header = {0};
     list<DRSTableInfo> drs_tables_info;
@@ -140,9 +152,6 @@ void Assets::load()
             cout << "File not support" << endl;
         }
     }
-    _read_slp_frames_by_id(fh, 3);
-            
-
             // for(int l = 0; l < slp_file_frame_info.height; l++){
             //     fh.read((char*)&slp_file_frame_row_edge, sizeof(slp_frame_row_edge));
             //     if((slp_file_frame_row_edge.left_space == 0x8000) || slp_file_frame_row_edge.right_space == 0x8000) {

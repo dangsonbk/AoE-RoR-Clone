@@ -1,17 +1,12 @@
 #ifndef ASSETS_HPP
 #define ASSETS_HPP
 
-#include <cstdint>
-#include <fstream>
-#include <iterator>
-#include <vector>
-#include <list>
-#include <string.h>
-#include <map>
+#include <Common.h>
 
 // #include "spdlog/spdlog.h"
-using namespace std; 
-// Struct defined by https://github.com/SFTtech/openage 
+using namespace std;
+// Struct defined by https://github.com/SFTtech/openage
+
 typedef struct drs_header {
     char copyright[40];
     char version[4];
@@ -58,10 +53,10 @@ typedef struct slp_command_offset {
   uint32_t offset;
 } SLPCommandOffset;
 
-enum slp_cmd 
-{ 
-  cmd_color_list, 
-  cmd_skip, 
+enum slp_cmd
+{
+  cmd_color_list,
+  cmd_skip,
   cmd_big_color_list,
   cmd_big_skip,
   cmd_player_color_list = 0x6,
@@ -79,13 +74,14 @@ private:
   map<int32_t, int32_t> m_file_info_map_slp;
 
 private:
+  void _load();
   void _read_drs_header(std::fstream &fh, drs_header *header);
   void _read_drs_table_info(std::fstream &fh, list<DRSTableInfo> *table_info, int table_count);
   void _read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it);
-  int  _read_slp_frames_by_id(fstream &fh, int32_t id);
+  vector<RGBAPixel> _read_slp_frames_by_id(fstream &fh, int32_t id);
 public:
   Assets(/* args */);
   ~Assets();
-  void load();
+  vector<RGBAPixel> get_by_id(int32_t id);
 };
 #endif

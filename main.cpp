@@ -2,14 +2,13 @@
 #include "SFML/Graphics.hpp"
 
 #include "Game.h"
-#include "Assets.h"
 #include <iostream>
 
 int main()
 {
-    Assets assets;
-    Game game;
-    game.run();
+    Game* game = new Game();
+    game->run();
 
+    delete game;
     return 0;
 }
