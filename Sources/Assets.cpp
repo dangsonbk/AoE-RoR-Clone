@@ -6,6 +6,9 @@
 */
 using namespace std;
 
+// TODO:
+// - Frame cache
+
 Assets::Assets(/* args */)
 {
     _load();
@@ -79,55 +82,74 @@ void Assets::_read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
     }
 }
 
-vector<RGBAPixel> Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
-    vector<RGBAPixel> pixels;
-    SLPHeader slp_file_header = {0};
-    SLPFrameInfo slp_file_frame_info = {0};
-    SLPFrameRowEdge slp_file_frame_row_edge = {0};
-    SLPCommandOffset slp_file_command_offset = {};
+AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
+    AssetFrames frames;
+    SLPHeader slp_file_header;
+    SLPFrameInfo slp_file_frame_info;
+    SLPFrameRowEdge slp_file_frame_row_edge;
+    SLPCommandOffset slp_file_command_offset;
 
     auto it = m_file_info_map_slp.find(id);
 
     if(it != m_file_info_map_slp.end()){
-        cout << "Offset of item: " << it->second << endl;
         fh.seekg(it->second);
-        fh.read((char*)&slp_file_header, sizeof(slp_file_header));
+        fh.read((char*)&slp_file_header, sizeof(SLPHeader));
 
-        cout << "-- SLP file header: " << endl;
-        cout    << "num_frames: " << slp_file_header.num_frames << "\n"
-                << "comment: " << slp_file_header.comment << endl;
+        cout << "-- SLP file header: " << slp_file_header.num_frames << " frames of " << slp_file_header.comment << endl;
 
         int32_t _max_width = 0;
         int32_t _max_heigh = 0;
+
+        frames.num_frame = slp_file_header.num_frames;
+        streampos fh_next_frame_pos = fh.tellg();
         for(int i = 0; i < slp_file_header.num_frames; ++i) {
-            fh.read((char*)&slp_file_frame_info, sizeof(slp_frame_info));
+            fh.seekg(fh_next_frame_pos);
+            fh.read((char*)&slp_file_frame_info, sizeof(SLPFrameInfo));
             _max_width = max(_max_width, slp_file_frame_info.width);
             _max_heigh = max(_max_heigh, slp_file_frame_info.height);
-            cout    << "cmd_table_offset: " << slp_file_frame_info.cmd_table_offset << "\n"
-                    << "outline_table_offset: " << slp_file_frame_info.outline_table_offset << "\n"
-                    << "palette_offset: " << slp_file_frame_info.palette_offset << "\n"
-                    << "properties: " << slp_file_frame_info.properties << "\n"
-                    << "width: " << slp_file_frame_info.width << "\n"
-                    << "height: " << slp_file_frame_info.height << "\n"
-                    << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
-                    << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << endl;
-        }
+            // cout    << "cmd_table_offset: " << slp_file_frame_info.cmd_table_offset << "\n"
+            //         << "outline_table_offset: " << slp_file_frame_info.outline_table_offset << "\n"
+            //         << "palette_offset: " << slp_file_frame_info.palette_offset << "\n"
+            //         << "properties: " << slp_file_frame_info.properties << "\n"
+            //         << "width: " << slp_file_frame_info.width << "\n"
+            //         << "height: " << slp_file_frame_info.height << "\n"
+            //         << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
+            //         << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << endl;
+            fh_next_frame_pos = fh.tellg();
+            // Draw single frame
+            AssetFrame frame;
 
-        int32_t pixels_count = _max_width * _max_heigh;
-        for (int i = 0; i < pixels_count; ++i) {
-            RGBAPixel pixel = {255,255,255,255};
-            pixels.push_back(pixel);
+            frame.width = slp_file_frame_info.width;
+            frame.height = slp_file_frame_info.height;
+            frame.hotspot_x = slp_file_frame_info.hotspot_x;
+            frame.hotspot_y = slp_file_frame_info.hotspot_y;
+
+            fh.seekg(it->second + slp_file_frame_info.outline_table_offset);
+            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+                fh.read((char*)&slp_file_frame_row_edge, sizeof(SLPFrameRowEdge));
+                for(int32_t j = 0; j < slp_file_frame_info.width; ++j) {
+                    if((j<slp_file_frame_row_edge.left_space) || (j>slp_file_frame_info.width-slp_file_frame_row_edge.right_space)) {
+                        frame.pixels.push_back({0,0,0,0});
+                    } else {
+                        frame.pixels.push_back({255,255,255,255});
+                    }
+                }
+            }
+            frames.frame_width = _max_width;
+            frames.frame_height = _max_heigh;
+            frames.frames.push_back(frame);
         }
     } else {
         cout << "Item not found, could not read frames info" << endl;
     }
-    return pixels;
+    return frames;
 }
 
-vector<RGBAPixel> Assets::get_by_id(int32_t id) {
+AssetFrames Assets::get_by_id(int32_t id) {
     fstream fh;
     fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
-    return this->_read_slp_frames_by_id(fh, 3);
+    cout << "Opening file ..." << endl;
+    return this->_read_slp_frames_by_id(fh, id);
 }
 
 void Assets::_load()
@@ -152,28 +174,6 @@ void Assets::_load()
             cout << "File not support" << endl;
         }
     }
-            // for(int l = 0; l < slp_file_frame_info.height; l++){
-            //     fh.read((char*)&slp_file_frame_row_edge, sizeof(slp_frame_row_edge));
-            //     if((slp_file_frame_row_edge.left_space == 0x8000) || slp_file_frame_row_edge.right_space == 0x8000) {
-            //         for(int m = 0; m < slp_file_frame_info.width; m++){
-            //             cout << "-";
-            //         }
-            //     } else {
-            //         for(int ls = 0; ls < slp_file_frame_row_edge.left_space; ls++){
-            //             cout << " ";
-            //         }
-            //         int center = slp_file_frame_info.width - slp_file_frame_row_edge.left_space - slp_file_frame_row_edge.right_space;
-            //         for(int ct = 0; ct < center; ct++){
-            //             cout << "*";
-            //         }
-            //         for(int lr = 0; lr < slp_file_frame_row_edge.right_space; lr++){
-            //             cout << " ";
-            //         }
-            //         cout << "\n";
-            //         // cout   << "left_space: " << slp_file_frame_row_edge.left_space << "\n"
-            //         //             << "right_space: " << slp_file_frame_row_edge.right_space << endl;
-            //     }
-            // }
 
             // int32_t *drawing_command_offsets = new int[slp_file_frame_info.height];
             // fh.seekg(file_info.file_data_offset + slp_file_frame_info.outline_table_offset + slp_file_frame_info.height * 4);

@@ -78,10 +78,10 @@ private:
   void _read_drs_header(std::fstream &fh, drs_header *header);
   void _read_drs_table_info(std::fstream &fh, list<DRSTableInfo> *table_info, int table_count);
   void _read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it);
-  vector<RGBAPixel> _read_slp_frames_by_id(fstream &fh, int32_t id);
+  AssetFrames _read_slp_frames_by_id(fstream &fh, int32_t id);
 public:
   Assets(/* args */);
   ~Assets();
-  vector<RGBAPixel> get_by_id(int32_t id);
+  AssetFrames get_by_id(int32_t id);
 };
 #endif

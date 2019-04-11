@@ -6,18 +6,19 @@ Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application") , mTexture()
     // TODO: Make game setting class that define where to load texture
     // Below is testing code for loading texture from pixels
     sf::Image image;
-    vector<RGBAPixel> pixels_vect = m_assets->get_by_id(3);
-    uint8_t pixels[120*77*4];
-    for(int i = 0; i < 120*77; ++i) {
-        *(pixels + i*4) = pixels_vect[i].r;
-        *(pixels + i*4 + 1) = pixels_vect[i].g;
-        *(pixels + i*4 + 2) = pixels_vect[i].b;
-        *(pixels + i*4 + 3) = pixels_vect[i].a;
+    AssetFrames frames = m_assets->get_by_id(73);
+    uint8_t pixels[frames.frames[1].width*frames.frames[1].height*4];
+    for(int i = 0; i < frames.frames[1].width*frames.frames[1].height; ++i) {
+        // cout << "-" << frames.frames[1].pixels[i].r << endl;
+        *(pixels + i*4) = frames.frames[1].pixels[i].r;
+        *(pixels + i*4 + 1) = frames.frames[1].pixels[i].g;
+        *(pixels + i*4 + 2) = frames.frames[1].pixels[i].b;
+        *(pixels + i*4 + 3) = frames.frames[1].pixels[i].a;
     }
-    image.create(120, 70, pixels);
+    image.create(frames.frames[1].width, frames.frames[1].height, pixels);
 
-    if (!mTexture.loadFromImage(image))
-    {
+    if (!mTexture.loadFromImage(image)){
+        cout << "Error loading asset from image" << endl;
         exit(1);
     }
     mPlayer.setTexture(mTexture);
