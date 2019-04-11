@@ -72,12 +72,15 @@ enum slp_cmd
 class Assets {
 private:
   map<int32_t, int32_t> m_file_info_map_slp;
+  map<int32_t, int32_t> m_file_info_map_bin;
 
 private:
-  void _load();
+  void _load_texture(std::string const& path);
+  void _load_palette(std::string const& path);
   void _read_drs_header(std::fstream &fh, drs_header *header);
   void _read_drs_table_info(std::fstream &fh, list<DRSTableInfo> *table_info, int table_count);
   void _read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it);
+  void _read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it);
   AssetFrames _read_slp_frames_by_id(fstream &fh, int32_t id);
 public:
   Assets(/* args */);

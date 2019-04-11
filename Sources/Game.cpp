@@ -7,15 +7,15 @@ Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application") , mTexture()
     // Below is testing code for loading texture from pixels
     sf::Image image;
     AssetFrames frames = m_assets->get_by_id(73);
-    uint8_t pixels[frames.frames[1].width*frames.frames[1].height*4];
-    for(int i = 0; i < frames.frames[1].width*frames.frames[1].height; ++i) {
-        // cout << "-" << frames.frames[1].pixels[i].r << endl;
-        *(pixels + i*4) = frames.frames[1].pixels[i].r;
-        *(pixels + i*4 + 1) = frames.frames[1].pixels[i].g;
-        *(pixels + i*4 + 2) = frames.frames[1].pixels[i].b;
-        *(pixels + i*4 + 3) = frames.frames[1].pixels[i].a;
+    uint8_t pixels[frames.frames[0].width*frames.frames[0].height*4];
+    for(int i = 0; i < frames.frames[0].width*frames.frames[0].height; ++i) {
+        // cout << "-" << frames.frames[0].pixels[i].r << endl;
+        *(pixels + i*4) = frames.frames[0].pixels[i].r;
+        *(pixels + i*4 + 1) = frames.frames[0].pixels[i].g;
+        *(pixels + i*4 + 2) = frames.frames[0].pixels[i].b;
+        *(pixels + i*4 + 3) = frames.frames[0].pixels[i].a;
     }
-    image.create(frames.frames[1].width, frames.frames[1].height, pixels);
+    image.create(frames.frames[0].width, frames.frames[0].height, pixels);
 
     if (!mTexture.loadFromImage(image)){
         cout << "Error loading asset from image" << endl;

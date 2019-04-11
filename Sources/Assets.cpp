@@ -11,7 +11,8 @@ using namespace std;
 
 Assets::Assets(/* args */)
 {
-    _load();
+    _load_texture(string("../Assets/Origin/graphics.drs"));
+    _load_palette(string("../Assets/Origin/Interfac.drs"));
 }
 
 Assets::~Assets()
@@ -82,6 +83,20 @@ void Assets::_read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
     }
 }
 
+void Assets::_read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it) {
+    DRSFileInfo drs_file_info = {0};
+    fh.seekg(it->file_info_offset);
+    // for(int k = 0; k < table_info.num_files; k++){
+    for(int k = 0; k < it->num_files; ++k){
+        fh.read((char*)&drs_file_info, sizeof(DRSFileInfo));
+        m_file_info_map_bin.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
+
+        // TODO: use logging library
+        cout    << "- File information: file id: " << drs_file_info.file_id
+                << " at " << drs_file_info.file_data_offset << endl;
+    }
+}
+
 AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
     AssetFrames frames;
     SLPHeader slp_file_header;
@@ -124,13 +139,32 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
             frame.hotspot_x = slp_file_frame_info.hotspot_x;
             frame.hotspot_y = slp_file_frame_info.hotspot_y;
 
+            // Read and save outline offset into vector
             fh.seekg(it->second + slp_file_frame_info.outline_table_offset);
+            vector<SLPFrameRowEdge> rows_edge;
             for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
                 fh.read((char*)&slp_file_frame_row_edge, sizeof(SLPFrameRowEdge));
+                rows_edge.push_back({slp_file_frame_row_edge.left_space, slp_file_frame_row_edge.right_space});
+            }
+
+            fh.seekg(it->second + slp_file_frame_info.cmd_table_offset);
+            vector<uint32_t> command_offsets;
+            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+                fh.read((char*)&slp_file_command_offset, sizeof(SLPCommandOffset));
+                command_offsets.push_back(slp_file_command_offset.offset);
+            }
+
+            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+                fh.seekg(command_offsets[i]);
                 for(int32_t j = 0; j < slp_file_frame_info.width; ++j) {
-                    if((j<slp_file_frame_row_edge.left_space) || (j>slp_file_frame_info.width-slp_file_frame_row_edge.right_space)) {
+                    if((j < rows_edge[i].left_space) || (j > slp_file_frame_info.width - rows_edge[i].right_space)) {
                         frame.pixels.push_back({0,0,0,0});
                     } else {
+                        // Draw with pallete
+                        // char command;
+                        // fh.read((char*)&command , sizeof(command ));
+                        // command &= 0x0F;
+                        // //     } while (command != 0x0F);
                         frame.pixels.push_back({255,255,255,255});
                     }
                 }
@@ -147,20 +181,22 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
 
 AssetFrames Assets::get_by_id(int32_t id) {
     fstream fh;
+    AssetFrames result;
     fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
-    cout << "Opening file ..." << endl;
-    return this->_read_slp_frames_by_id(fh, id);
+    result = this->_read_slp_frames_by_id(fh, id);
+    fh.close();
+    return result;
 }
 
-void Assets::_load()
+void Assets::_load_texture(std::string const& path)
 {
-    DRSHeader header = {0};
+    DRSHeader header;
     list<DRSTableInfo> drs_tables_info;
     list<DRSTableInfo>::iterator drs_tables_info_it;
 
     fstream fh;
 
-    fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
+    fh.open(path, fstream::in | fstream::binary);
     // fh.open("../Assets/Origin/Interfac.drs", fstream::in | fstream::binary);
     _read_drs_header(fh, &header);
     _read_drs_table_info(fh, &drs_tables_info, header.table_count);
@@ -170,30 +206,28 @@ void Assets::_load()
         // drs_file_info tables start at position drs_table_info->file_info_offset for the corresponding table
         if(strncmp(drs_tables_info_it->file_extension, " pls", 4) == 0) {
             _read_slp_files_list(fh, drs_tables_info_it);
-        } else {
-            cout << "File not support" << endl;
         }
     }
-
-            // int32_t *drawing_command_offsets = new int[slp_file_frame_info.height];
-            // fh.seekg(file_info.file_data_offset + slp_file_frame_info.outline_table_offset + slp_file_frame_info.height * 4);
-            // for(int l = 0; l < slp_file_frame_info.height; l++){
-            //     fh.read((char*)&slp_file_command_offset , sizeof(slp_command_offset ));
-            //     drawing_command_offsets[l] = slp_file_command_offset.offset;
-            //     // cout   << "offset: " << slp_file_command_offset.offset << "\n";
-            // }
-            // char command;
-            // for(int l = 0; l < slp_file_frame_info.height; l++){
-            //     cout << "- ";
-            //     // fh.seekg(drawing_command_offsets[l]);
-            //     do {
-            //         fh.read((char*)&command , sizeof(command ));
-            //         printf(" 0x%x", command & 0x0F);
-            //     } while (command != 0x0F);
-
-            //     cout << endl;
-            // }
-        // delete [] drawing_command_offsets;
-
     fh.close();
+}
+
+void Assets::_load_palette(std::string const& path) {
+    fstream palette_fh;
+
+    DRSHeader header = {0};
+    list<DRSTableInfo> drs_tables_info;
+    list<DRSTableInfo>::iterator drs_tables_info_it;
+
+    palette_fh.open(path, fstream::in | fstream::binary);
+    _read_drs_header(palette_fh, &header);
+    _read_drs_table_info(palette_fh, &drs_tables_info, header.table_count);
+
+    // Read the tables one by one
+    for(drs_tables_info_it = drs_tables_info.begin(); drs_tables_info_it != drs_tables_info.end(); ++drs_tables_info_it) {
+        // drs_file_info tables start at position drs_table_info->file_info_offset for the corresponding table
+        if(strncmp(drs_tables_info_it->file_extension, "anib", 4) == 0) {
+            _read_bin_files_list(palette_fh, drs_tables_info_it);
+        }
+    }
+    palette_fh.close();
 }
