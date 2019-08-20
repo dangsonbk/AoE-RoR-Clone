@@ -115,6 +115,8 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
         int32_t _max_width = 0;
         int32_t _max_heigh = 0;
 
+        bool eol = false;
+
         frames.num_frame = slp_file_header.num_frames;
         streampos fh_next_frame_pos = fh.tellg();
         for(int i = 0; i < slp_file_header.num_frames; ++i) {
@@ -155,19 +157,54 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
             }
 
             for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+                uint8_t command;
+                uint8_t command_low_nibble;
+                uint8_t command_high_nibble;
+                uint8_t command_lower_bits;
+                uint8_t pixel_count;
+
+                eol = false;
                 fh.seekg(command_offsets[i]);
-                for(int32_t j = 0; j < slp_file_frame_info.width; ++j) {
-                    if((j < rows_edge[i].left_space) || (j > slp_file_frame_info.width - rows_edge[i].right_space)) {
-                        frame.pixels.push_back({0,0,0,0});
-                    } else {
-                        // Draw with pallete
-                        // char command;
-                        // fh.read((char*)&command , sizeof(command ));
-                        // command &= 0x0F;
-                        // //     } while (command != 0x0F);
-                        frame.pixels.push_back({255,255,255,255});
-                    }
+                for(int32_t j = 0; j < rows_edge[i].left_space; j++) {
+                    frame.pixels.push_back({0,0,0,0});
                 }
+                while(!eol) {
+                    fh.read((char*)&command , sizeof(command ));
+                    command_low_nibble = 0x0F & command;
+                    command_lower_bits = 0b00000011 & command;
+
+                    if (command_low_nibble == 0x0F) {
+                        eol = true;
+                        continue;
+                    } else if (command_lower_bits == 0b00000000) {
+                        pixel_count = command >> 2; 
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            fh.read((char*)&command , sizeof(command));
+                            frame.pixels.push_back({30,50,0,255});
+                        }
+                    } else if (command_lower_bits == 0b00000001) {
+                        pixel_count = command >> 2;
+                        if (pixel_count == 0) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                        }
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            fh.read((char*)&command , sizeof(command));
+                            frame.pixels.push_back({30,50,0,255});
+                        }
+                    }
+                    frame.pixels.push_back({255,255,255,255});
+                }
+                for(int32_t j = 0; j < rows_edge[i].right_space; j++) {
+                    frame.pixels.push_back({0,0,0,0});
+                }
+                // for(int32_t j = 0; j < slp_file_frame_info.width; ++j) {
+                //     if((j < rows_edge[i].left_space) || (j > slp_file_frame_info.width - rows_edge[i].right_space)) {
+                //         frame.pixels.push_back({0,0,0,0});
+                //     } else {
+                //         // Draw with pallete
+                //     }
+                // }
             }
             frames.frame_width = _max_width;
             frames.frame_height = _max_heigh;
@@ -181,11 +218,11 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
 
 AssetFrames Assets::get_by_id(int32_t id) {
     fstream fh;
-    AssetFrames result;
+    AssetFrames frame;
     fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
-    result = this->_read_slp_frames_by_id(fh, id);
+    frame = this->_read_slp_frames_by_id(fh, id);
     fh.close();
-    return result;
+    return frame;
 }
 
 void Assets::_load_texture(std::string const& path)

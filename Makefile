@@ -1,7 +1,7 @@
 ARTIFACT = AoE
 TARGET = $(OUTPUT_DIR)/$(ARTIFACT)
 
-LIBS = -L../SFML/lib -lsfml-graphics -lsfml-window -lsfml-system
+LIBS = -L./SFML/lib -lsfml-graphics -lsfml-window -lsfml-system
 INCS = -IInc
 CXX = g++
 LD = $(CXX)
