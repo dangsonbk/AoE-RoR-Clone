@@ -6,9 +6,9 @@ Game::Game() : mWindow(sf::VideoMode(640, 480), "SFML Application") , mTexture()
     // TODO: Make game setting class that define where to load texture
     // Below is testing code for loading texture from pixels
     sf::Image image;
-    AssetFrames frames = m_assets->get_by_id(73);
+    AssetFrames frames = m_assets->get_by_id(121);
     uint8_t pixels[frames.frames[0].width*frames.frames[0].height*4];
-    for(int i = 0; i < frames.frames[0].width*frames.frames[0].height; ++i) {
+    for(uint32_t i = 0; i < frames.frames[0].width*frames.frames[0].height; ++i) {
         // cout << "-" << frames.frames[0].pixels[i].r << endl;
         *(pixels + i*4) = frames.frames[0].pixels[i].r;
         *(pixels + i*4 + 1) = frames.frames[0].pixels[i].g;
@@ -97,7 +97,7 @@ void Game::update(sf::Time deltaTime)
 
 void Game::render()
 {
-    mWindow.clear();
+    mWindow.clear(sf::Color(255, 255, 255));
     mWindow.draw(mPlayer);
     mWindow.display();
 }

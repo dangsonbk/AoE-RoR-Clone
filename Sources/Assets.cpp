@@ -4,6 +4,9 @@
  * http://artho.com/age/drs.html
  * https://github.com/SFTtech/openage/blob/master/doc/media/slp-files.md
 */
+
+#define TRANSPARENT {0, 0, 0, 0}
+
 using namespace std;
 
 // TODO:
@@ -92,8 +95,8 @@ void Assets::_read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
         m_file_info_map_bin.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
 
         // TODO: use logging library
-        cout    << "- File information: file id: " << drs_file_info.file_id
-                << " at " << drs_file_info.file_data_offset << endl;
+        // cout    << "- File information: file id: " << drs_file_info.file_id
+        //         << " at " << drs_file_info.file_data_offset << endl;
     }
 }
 
@@ -115,8 +118,6 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
         int32_t _max_width = 0;
         int32_t _max_heigh = 0;
 
-        bool eol = false;
-
         frames.num_frame = slp_file_header.num_frames;
         streampos fh_next_frame_pos = fh.tellg();
         for(int i = 0; i < slp_file_header.num_frames; ++i) {
@@ -124,14 +125,7 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
             fh.read((char*)&slp_file_frame_info, sizeof(SLPFrameInfo));
             _max_width = max(_max_width, slp_file_frame_info.width);
             _max_heigh = max(_max_heigh, slp_file_frame_info.height);
-            // cout    << "cmd_table_offset: " << slp_file_frame_info.cmd_table_offset << "\n"
-            //         << "outline_table_offset: " << slp_file_frame_info.outline_table_offset << "\n"
-            //         << "palette_offset: " << slp_file_frame_info.palette_offset << "\n"
-            //         << "properties: " << slp_file_frame_info.properties << "\n"
-            //         << "width: " << slp_file_frame_info.width << "\n"
-            //         << "height: " << slp_file_frame_info.height << "\n"
-            //         << "hotspot_x: " << slp_file_frame_info.hotspot_x << "\n"
-            //         << "hotspot_y: " << slp_file_frame_info.hotspot_y << "\n" << endl;
+
             fh_next_frame_pos = fh.tellg();
             // Draw single frame
             AssetFrame frame;
@@ -144,67 +138,191 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
             // Read and save outline offset into vector
             fh.seekg(it->second + slp_file_frame_info.outline_table_offset);
             vector<SLPFrameRowEdge> rows_edge;
-            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+            for(uint32_t i = 0; i < frame.height; ++i) {
                 fh.read((char*)&slp_file_frame_row_edge, sizeof(SLPFrameRowEdge));
                 rows_edge.push_back({slp_file_frame_row_edge.left_space, slp_file_frame_row_edge.right_space});
             }
 
             fh.seekg(it->second + slp_file_frame_info.cmd_table_offset);
             vector<uint32_t> command_offsets;
-            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+            for(uint32_t i = 0; i < frame.height; ++i) {
                 fh.read((char*)&slp_file_command_offset, sizeof(SLPCommandOffset));
-                command_offsets.push_back(slp_file_command_offset.offset);
+                command_offsets.push_back(it->second + slp_file_command_offset.offset);
+                // cout << "Command offset: " << it->second + slp_file_command_offset.offset << std::endl;
             }
 
-            for(int32_t i = 0; i < slp_file_frame_info.height; ++i) {
+            uint32_t counter = 0;
+            for(uint32_t i = 0; i < frame.height; ++i) {
                 uint8_t command;
                 uint8_t command_low_nibble;
                 uint8_t command_high_nibble;
-                uint8_t command_lower_bits;
-                uint8_t pixel_count;
+                uint32_t pixel_count;
+                uint32_t pixel_drawed_count = 0;
+                bool eol = false;
 
-                eol = false;
                 fh.seekg(command_offsets[i]);
+                // cout << "Command offset: " << command_offsets[i] << std::endl;
                 for(int32_t j = 0; j < rows_edge[i].left_space; j++) {
-                    frame.pixels.push_back({0,0,0,0});
+                    frame.pixels.push_back(TRANSPARENT);
+                    pixel_drawed_count++;
                 }
                 while(!eol) {
                     fh.read((char*)&command , sizeof(command ));
+                    command_high_nibble = 0xF0 & command;
                     command_low_nibble = 0x0F & command;
-                    command_lower_bits = 0b00000011 & command;
 
-                    if (command_low_nibble == 0x0F) {
+                    switch (command_low_nibble) {
+                    case 0x0F:
                         eol = true;
-                        continue;
-                    } else if (command_lower_bits == 0b00000000) {
-                        pixel_count = command >> 2; 
+                        break;
+                    case 0b0000:
+                    case 0b0100:
+                    case 0b1000:
+                    case 0b1100:
+                        // Lesser block copy
+                        pixel_count = static_cast<uint32_t>(command >> 2);
+                        // cout << "Lesser block copy by " << (int)pixel_count << std::endl;
                         for(uint32_t j = 0; j < pixel_count; j ++) {
                             fh.read((char*)&command , sizeof(command));
-                            frame.pixels.push_back({30,50,0,255});
+                            frame.pixels.push_back({250, 0, 0, 255});
+                            pixel_drawed_count++;
                         }
-                    } else if (command_lower_bits == 0b00000001) {
-                        pixel_count = command >> 2;
+                        break;
+                    case 0b0001:
+                    case 0b0101:
+                    case 0b1001:
+                    case 0b1101:
+                        // Lesser skip
+                        pixel_count = static_cast<uint32_t>(command >> 2);
+                        if (pixel_count == 0) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = static_cast<uint32_t>(command);
+                        }
+                        // cout << "Lesser skip by " << (int)pixel_count << std::endl;
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            frame.pixels.push_back(TRANSPARENT);
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b0010:
+                        // Greater block copy
+                        fh.read((char*)&command , sizeof(command));
+                        pixel_count = static_cast<uint32_t>(command);
+
+                        // cout << "Greater block copy by " << (int)pixel_count << std::endl;
+
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            fh.read((char*)&command , sizeof(command));
+                            frame.pixels.push_back({150, 250 ,0, 255});
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b0011:
+                        // Greater skip
+                        fh.read((char*)&command , sizeof(command));
+                        pixel_count = static_cast<uint32_t>(command);
+
+                        // cout << "Greater skip by " << pixel_count << std::endl;
+
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            frame.pixels.push_back(TRANSPARENT);
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b0110:
+                        // Player color block copy
+                        pixel_count = command_high_nibble >> 4;
                         if (pixel_count == 0) {
                             fh.read((char*)&command , sizeof(command));
                             pixel_count = command;
                         }
+
+                        // cout << "Player color block copy by " << (int)pixel_count << std::endl;
+
                         for(uint32_t j = 0; j < pixel_count; j ++) {
                             fh.read((char*)&command , sizeof(command));
-                            frame.pixels.push_back({30,50,0,255});
+                            frame.pixels.push_back({0, 0, 255, 255});
+                            pixel_drawed_count++;
                         }
+                        break;
+                    case 0b0111:
+                        // Fill
+                        pixel_count = command_high_nibble >> 4;
+                        if (pixel_count == 0) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                        }
+
+                        // cout << "Fill color by " << (int)pixel_count << std::endl;
+
+                        fh.read((char*)&command , sizeof(command));
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            frame.pixels.push_back({0, 255, 0, 255});
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b1010:
+                        // Fill player color
+                        pixel_count = command_high_nibble >> 4;
+                        if (pixel_count == 0) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                        }
+
+                        // cout << "Fill player color by " << (int)pixel_count << std::endl;
+
+                        fh.read((char*)&command , sizeof(command));
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            frame.pixels.push_back({20, 10, 255, 255});
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b1011:
+                        pixel_count = command_high_nibble >> 4;
+                        if (pixel_count == 0) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                        }
+
+                        // cout << "Shadows by " << (int)pixel_count << std::endl;
+
+                        for(uint32_t j = 0; j < pixel_count; j ++) {
+                            frame.pixels.push_back({0,0,0,100});
+                            pixel_drawed_count++;
+                        }
+                        break;
+                    case 0b1110:
+                        if (command_high_nibble == 0x00) {
+                        } else if (command_high_nibble == 0x40) {
+                            frame.pixels.push_back({0, 255, 0, 255});
+                            pixel_drawed_count++;
+                        } else if (command_high_nibble == 0x50) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                            frame.pixels.push_back({0, 255, 0, 255});
+                            pixel_drawed_count++;
+                        } else if (command_high_nibble == 0x60) {
+                            frame.pixels.push_back({0, 255,  0,255});
+                            pixel_drawed_count++;
+                        } else if (command_high_nibble == 0x70) {
+                            fh.read((char*)&command , sizeof(command));
+                            pixel_count = command;
+                            frame.pixels.push_back({0, 255, 0, 255});
+                            pixel_drawed_count++;
+                        } else {
+                            cout << "Unsupported extended commands " << (int)command_high_nibble << std::endl;
+                        }
+                        break;
+                    default:
+                        cout << "Unknown commands" << std::endl;
+                        break;
                     }
-                    frame.pixels.push_back({255,255,255,255});
                 }
-                for(int32_t j = 0; j < rows_edge[i].right_space; j++) {
-                    frame.pixels.push_back({0,0,0,0});
+                counter ++;
+                // cout << "EOL " << counter << " w " << frame.width << " drawed " << (int)pixel_drawed_count << " Add " << frame.width - pixel_drawed_count << std::endl;
+                for(uint32_t j = pixel_drawed_count; j < frame.width; j++) {
+                    frame.pixels.push_back(TRANSPARENT);
                 }
-                // for(int32_t j = 0; j < slp_file_frame_info.width; ++j) {
-                //     if((j < rows_edge[i].left_space) || (j > slp_file_frame_info.width - rows_edge[i].right_space)) {
-                //         frame.pixels.push_back({0,0,0,0});
-                //     } else {
-                //         // Draw with pallete
-                //     }
-                // }
             }
             frames.frame_width = _max_width;
             frames.frame_height = _max_heigh;
