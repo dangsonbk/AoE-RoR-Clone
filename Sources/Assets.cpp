@@ -1,3 +1,4 @@
+#include <sstream>
 #include "Assets.h"
 
 /*
@@ -6,6 +7,7 @@
 */
 
 #define TRANSPARENT {0, 0, 0, 0}
+#define PALLETE_FILE 50500
 
 using namespace std;
 
@@ -41,11 +43,11 @@ void Assets::_read_drs_table_info(fstream &fh, list<DRSTableInfo> *tables_info, 
 
         // TODO: use logging library
         // TODO: remove on production, this is for debug only
-        char _file_ext[5];
-        strncpy(_file_ext, table_info.file_extension, 4);
-        _file_ext[4] = '\0';
-        cout    << "- Table information: " << table_info.num_files << " " << _file_ext
-                << " file(s) at offset " << table_info.file_info_offset << endl;
+        // char _file_ext[5];
+        // strncpy(_file_ext, table_info.file_extension, 4);
+        // _file_ext[4] = '\0';
+        // cout    << "- Table information: " << table_info.num_files << " " << _file_ext
+        //         << " file(s) at offset " << table_info.file_info_offset << endl;
     }
 }
 
@@ -95,8 +97,8 @@ void Assets::_read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
         m_file_info_map_bin.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
 
         // TODO: use logging library
-        // cout    << "- File information: file id: " << drs_file_info.file_id
-        //         << " at " << drs_file_info.file_data_offset << endl;
+        cout    << "- File information: file id: " << drs_file_info.file_id
+                << " at " << drs_file_info.file_data_offset << " size " << drs_file_info.file_size << endl;
     }
 }
 
@@ -109,7 +111,7 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
 
     auto it = m_file_info_map_slp.find(id);
 
-    if(it != m_file_info_map_slp.end()){
+    if(it != m_file_info_map_slp.end()) {
         fh.seekg(it->second);
         fh.read((char*)&slp_file_header, sizeof(SLPHeader));
 
@@ -184,7 +186,7 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
                         // cout << "Lesser block copy by " << (int)pixel_count << std::endl;
                         for(uint32_t j = 0; j < pixel_count; j ++) {
                             fh.read((char*)&command , sizeof(command));
-                            frame.pixels.push_back({250, 0, 0, 255});
+                            frame.pixels.push_back(m_palletes.at(command));
                             pixel_drawed_count++;
                         }
                         break;
@@ -213,7 +215,7 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
 
                         for(uint32_t j = 0; j < pixel_count; j ++) {
                             fh.read((char*)&command , sizeof(command));
-                            frame.pixels.push_back({150, 250 ,0, 255});
+                            frame.pixels.push_back(m_palletes.at(command));
                             pixel_drawed_count++;
                         }
                         break;
@@ -257,7 +259,8 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
 
                         fh.read((char*)&command , sizeof(command));
                         for(uint32_t j = 0; j < pixel_count; j ++) {
-                            frame.pixels.push_back({0, 255, 0, 255});
+                            // cout << (int)command << std::endl;
+                            frame.pixels.push_back(m_palletes.at(command));
                             pixel_drawed_count++;
                         }
                         break;
@@ -383,6 +386,36 @@ void Assets::_load_palette(std::string const& path) {
         if(strncmp(drs_tables_info_it->file_extension, "anib", 4) == 0) {
             _read_bin_files_list(palette_fh, drs_tables_info_it);
         }
+    }
+
+    auto it = m_file_info_map_bin.find(PALLETE_FILE);
+    if (it != m_file_info_map_bin.end()) {
+        uint32_t palletes_count = 0;
+        std::string jascPAL_text;
+        palette_fh.seekg(it->second);
+        std::getline(palette_fh, jascPAL_text);
+        // cout << "File header " << jascPAL_text << std::endl;
+        std::getline(palette_fh, jascPAL_text);
+        // cout << "File version " << jascPAL_text << std::endl;
+        std::getline(palette_fh, jascPAL_text);
+        palletes_count = static_cast<uint32_t>(std::stoi(jascPAL_text));
+        // cout << "File palletes count " << palletes_count << std::endl;
+
+        for(uint32_t i = 0; i < palletes_count; i++) {
+            std::getline(palette_fh, jascPAL_text);
+            std::stringstream ss(jascPAL_text);
+            std::string buf;
+            RGBAPixel pixel;
+            ss >> buf;
+            pixel.r = static_cast<uint8_t>(std::stoi(buf));
+            ss >> buf;
+            pixel.g = static_cast<uint8_t>(std::stoi(buf));
+            ss >> buf;
+            pixel.b = static_cast<uint8_t>(std::stoi(buf));
+            pixel.a = 255;
+            m_palletes.push_back(pixel);
+        }
+
     }
     palette_fh.close();
 }

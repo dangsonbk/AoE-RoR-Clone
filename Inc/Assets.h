@@ -73,6 +73,7 @@ class Assets {
 private:
   map<int32_t, int32_t> m_file_info_map_slp;
   map<int32_t, int32_t> m_file_info_map_bin;
+  vector<RGBAPixel> m_palletes;
 
 private:
   void _load_texture(std::string const& path);
