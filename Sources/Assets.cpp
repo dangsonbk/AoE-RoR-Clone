@@ -13,11 +13,13 @@ using namespace std;
 
 // TODO:
 // - Frame cache
+// - Load all terrain sprites
 
 Assets::Assets(/* args */)
 {
-    _load_texture(string("../Assets/Origin/graphics.drs"));
     _load_palette(string("../Assets/Origin/Interfac.drs"));
+    _load_terrain(string("../Assets/Origin/Terrain.drs"));
+    _load_texture(string("../Assets/Origin/graphics.drs"));
 }
 
 Assets::~Assets()
@@ -31,8 +33,7 @@ void Assets::_read_drs_header(fstream &fh, DRSHeader *header) {
                 << "Version: " << header->version << "\n"
                 << "File type: " << header->ftype << "\n"
                 << "Table count: " << header->table_count << "\n"
-                << "File offset: " << header->file_offset << "\n"
-                << "-----------------------------------------------------" << endl;
+                << "File offset: " << header->file_offset << endl;
 }
 
 void Assets::_read_drs_table_info(fstream &fh, list<DRSTableInfo> *tables_info, int table_count) {
@@ -43,11 +44,11 @@ void Assets::_read_drs_table_info(fstream &fh, list<DRSTableInfo> *tables_info, 
 
         // TODO: use logging library
         // TODO: remove on production, this is for debug only
-        // char _file_ext[5];
-        // strncpy(_file_ext, table_info.file_extension, 4);
-        // _file_ext[4] = '\0';
-        // cout    << "- Table information: " << table_info.num_files << " " << _file_ext
-        //         << " file(s) at offset " << table_info.file_info_offset << endl;
+        char _file_ext[5];
+        strncpy(_file_ext, table_info.file_extension, 4);
+        _file_ext[4] = '\0';
+        cout    << "- Table information: " << table_info.num_files << " " << _file_ext
+                << " file(s) at offset " << table_info.file_info_offset << endl;
     }
 }
 
@@ -74,20 +75,6 @@ void Assets::_read_drs_table_info(fstream &fh, list<DRSTableInfo> *tables_info, 
     +-----------------------------+
 */
 
-void Assets::_read_slp_files_list(fstream &fh, list<DRSTableInfo>::iterator it) {
-    DRSFileInfo drs_file_info = {0};
-    fh.seekg(it->file_info_offset);
-    // for(int k = 0; k < table_info.num_files; k++){
-    for(int k = 0; k < it->num_files; ++k){
-        fh.read((char*)&drs_file_info, sizeof(DRSFileInfo));
-        m_file_info_map_slp.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
-
-        // TODO: use logging library
-        // cout    << "- File information: file id: " << drs_file_info.file_id
-        //         << " at " << drs_file_info.file_data_offset << endl;
-    }
-}
-
 void Assets::_read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it) {
     DRSFileInfo drs_file_info = {0};
     fh.seekg(it->file_info_offset);
@@ -97,21 +84,21 @@ void Assets::_read_bin_files_list(fstream &fh, list<DRSTableInfo>::iterator it) 
         m_file_info_map_bin.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
 
         // TODO: use logging library
-        cout    << "- File information: file id: " << drs_file_info.file_id
-                << " at " << drs_file_info.file_data_offset << " size " << drs_file_info.file_size << endl;
+        // cout    << "- File information: file id: " << drs_file_info.file_id
+        //         << " at " << drs_file_info.file_data_offset << " size " << drs_file_info.file_size << endl;
     }
 }
 
-AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
+AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, const int32_t id, map<int32_t, int32_t> slp_map) {
     AssetFrames frames;
     SLPHeader slp_file_header;
     SLPFrameInfo slp_file_frame_info;
     SLPFrameRowEdge slp_file_frame_row_edge;
     SLPCommandOffset slp_file_command_offset;
 
-    auto it = m_file_info_map_slp.find(id);
+    auto it = slp_map.find(id);
 
-    if(it != m_file_info_map_slp.end()) {
+    if(it != slp_map.end()) {
         fh.seekg(it->second);
         fh.read((char*)&slp_file_header, sizeof(SLPHeader));
 
@@ -332,16 +319,37 @@ AssetFrames Assets::_read_slp_frames_by_id(fstream &fh, int32_t id) {
             frames.frames.push_back(frame);
         }
     } else {
-        cout << "Item not found, could not read frames info" << endl;
+        cout << "Item not found, could not read frames with id " << id << endl;
+        frames.num_frame = 1;
+        frames.frame_width = 10;
+        frames.frame_height = 10;
+        AssetFrame frame;
+        frame.width = 10;
+        frame.height = 10;
+        frame.hotspot_x = 5;
+        frame.hotspot_y = 5;
+        for (uint32_t i = 0; i < 100; i++) {
+            frame.pixels.push_back({0, 0, 0, 255});
+        }
+        frames.frames.push_back(frame);
     }
     return frames;
 }
 
-AssetFrames Assets::get_by_id(int32_t id) {
+AssetFrames Assets::get_sprite_by_id(int32_t id) {
     fstream fh;
     AssetFrames frame;
     fh.open("../Assets/Origin/graphics.drs", fstream::in | fstream::binary);
-    frame = this->_read_slp_frames_by_id(fh, id);
+    frame = this->_read_slp_frames_by_id(fh, id, m_file_info_map_slp_sprite);
+    fh.close();
+    return frame;
+}
+
+AssetFrames Assets::get_terrain_by_id(int32_t id) {
+    fstream fh;
+    AssetFrames frame;
+    fh.open("../Assets/Origin/terrain.drs", fstream::in | fstream::binary);
+    frame = this->_read_slp_frames_by_id(fh, id, m_file_info_map_slp_terrain);
     fh.close();
     return frame;
 }
@@ -351,6 +359,9 @@ void Assets::_load_texture(std::string const& path)
     DRSHeader header;
     list<DRSTableInfo> drs_tables_info;
     list<DRSTableInfo>::iterator drs_tables_info_it;
+
+    cout << "-----------------------------------------------------" << std::endl;
+    cout << "Loading texture: " << path << std::endl;
 
     fstream fh;
 
@@ -363,10 +374,51 @@ void Assets::_load_texture(std::string const& path)
     for(drs_tables_info_it = drs_tables_info.begin(); drs_tables_info_it != drs_tables_info.end(); ++drs_tables_info_it) {
         // drs_file_info tables start at position drs_table_info->file_info_offset for the corresponding table
         if(strncmp(drs_tables_info_it->file_extension, " pls", 4) == 0) {
-            _read_slp_files_list(fh, drs_tables_info_it);
+            DRSFileInfo drs_file_info = {0};
+            fh.seekg(drs_tables_info_it->file_info_offset);
+            for(int k = 0; k < drs_tables_info_it->num_files; ++k){
+                fh.read((char*)&drs_file_info, sizeof(DRSFileInfo));
+                m_file_info_map_slp_sprite.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
+            }
         }
     }
     fh.close();
+}
+
+void Assets::_load_terrain(std::string const& path) {
+    fstream terrain_fh;
+    DRSHeader header = {0};
+    list<DRSTableInfo> drs_tables_info;
+    list<DRSTableInfo>::iterator drs_tables_info_it;
+
+    cout << "-----------------------------------------------------" << std::endl;
+    cout << "Loading terrain: " << path << std::endl;
+
+    /*
+    15000: Desert
+    15001: Grass
+    15002: Sea
+    15003: Deep sea
+    */
+
+    terrain_fh.open(path, fstream::in | fstream::binary);
+    _read_drs_header(terrain_fh, &header);
+    _read_drs_table_info(terrain_fh, &drs_tables_info, header.table_count);
+
+    // Read the tables one by one
+    for(drs_tables_info_it = drs_tables_info.begin(); drs_tables_info_it != drs_tables_info.end(); ++drs_tables_info_it) {
+        // drs_file_info tables start at position drs_table_info->file_info_offset for the corresponding table
+        // cout << drs_tables_info_it->file_extension << std::endl;
+        if(strncmp(drs_tables_info_it->file_extension, " pls", 4) == 0) {
+            DRSFileInfo drs_file_info = {0};
+            terrain_fh.seekg(drs_tables_info_it->file_info_offset);
+            for(int k = 0; k < drs_tables_info_it->num_files; ++k){
+                terrain_fh.read((char*)&drs_file_info, sizeof(DRSFileInfo));
+                m_file_info_map_slp_terrain.insert(make_pair(drs_file_info.file_id, drs_file_info.file_data_offset));
+                cout << drs_file_info.file_id << std::endl;
+            }
+        }
+    }
 }
 
 void Assets::_load_palette(std::string const& path) {
@@ -375,6 +427,9 @@ void Assets::_load_palette(std::string const& path) {
     DRSHeader header = {0};
     list<DRSTableInfo> drs_tables_info;
     list<DRSTableInfo>::iterator drs_tables_info_it;
+
+    cout << "-----------------------------------------------------" << std::endl;
+    cout << "Loading pallete: " << path << std::endl;
 
     palette_fh.open(path, fstream::in | fstream::binary);
     _read_drs_header(palette_fh, &header);
